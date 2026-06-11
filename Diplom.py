@@ -314,12 +314,6 @@ def rhs(
     params: SystemParams,
     perturbation: bool = True
 ) -> np.ndarray:
-    """
-    Правая часть системы ОДУ.
-
-    perturbation=True  — движение с учетом Солнца;
-    perturbation=False — невозмущенное движение, без солнечных членов.
-    """
     x, y, u, v, theta1 = q
 
     r = math.sqrt(x**2 + y**2)
@@ -397,10 +391,6 @@ def plot_deviation_trajectory(
     q_unperturbed: np.ndarray,
     params: SystemParams
 ):
-    """
-    Строит фазовую кривую отклонения
-    в физических единицах (км).
-    """
     x_pert = q_perturbed[:, 0]
     y_pert = q_perturbed[:, 1]
 
@@ -444,9 +434,6 @@ def compare_perturbed_unperturbed(
     q_unperturbed: np.ndarray,
     params: SystemParams
 ):
-    """
-    Сравнивает возмущенное и невозмущенное движение.
-    """
     x_pert = q_perturbed[:, 0]
     y_pert = q_perturbed[:, 1]
 
@@ -493,36 +480,84 @@ def plot_trajectory_comparison(
     q_unperturbed: np.ndarray,
     params: SystemParams
 ):
-    """
-    Строит дополнительный график с двумя траекториями:
-    1) с учетом солнечного возмущения;
-    2) без учета солнечного возмущения.
-    """
+    # Безразмерные координаты
     x_pert = q_perturbed[:, 0]
     y_pert = q_perturbed[:, 1]
-
     x_unpert = q_unperturbed[:, 0]
     y_unpert = q_unperturbed[:, 1]
 
-    plt.figure(figsize=(7, 7))
-    plt.plot(x_pert, y_pert, label="С учетом возмущения Солнца")
-    plt.plot(x_unpert, y_unpert, "--", label="Без учета возмущения Солнца")
-    plt.scatter([0], [0], marker="o", label=params.planet)
+    # Перевод в километры
+    x_pert_km = x_pert * params.a2_km
+    y_pert_km = y_pert * params.a2_km
 
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title(f"Сравнение траекторий: {params.name}")
-    plt.axis("equal")
-    plt.grid(True)
-    plt.legend()
+    x_unpert_km = x_unpert * params.a2_km
+    y_unpert_km = y_unpert * params.a2_km
+
+    dx = (x_pert - x_unpert) * params.a2_km
+    dy = (y_pert - y_unpert) * params.a2_km
+    dr = np.sqrt(dx**2 + dy**2)
+    steps = np.arange(len(dr))
+    tau   = steps / (len(steps) - 1)
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # --- Левый: полная орбита (для контекста) ---
+    ax1 = axes[0]
+    ax1.plot(
+        x_pert_km,
+        y_pert_km,
+        color="tab:blue",
+        label="С учётом возмущения",
+        linewidth=1.5
+    )
+
+    ax1.plot(
+        x_unpert_km,
+        y_unpert_km,
+        "--",
+        color="tab:orange",
+        label="Без учёта возмущения",
+        linewidth=1.5
+    )
+    ax1.scatter([0], [0], marker="o", color="black", zorder=5,
+                label=params.planet)
+    ax1.set_xlabel("x, км")
+    ax1.set_ylabel("y, км")
+    ax1.set_title(f"Орбита: {params.name}")
+    ax1.axis("equal")
+    ax1.grid(True)
+    ax1.legend(fontsize=8)
+
+    # --- Правый: модуль отклонения |Δr(τ)| в километрах ---
+    ax2 = axes[1]
+    ax2.plot(tau, dr, color="purple", linewidth=2)
+    ax2.fill_between(tau, dr, alpha=0.15, color="purple")
+
+    # Точка максимума
+    idx_max = np.argmax(dr)
+    ax2.scatter(tau[idx_max], dr[idx_max],
+                color="red", zorder=5, s=60)
+    ax2.annotate(
+        f"max Δr = {dr[idx_max]:.0f} км",
+        xy=(tau[idx_max], dr[idx_max]),
+        xytext=(tau[idx_max] - 0.25, dr[idx_max] * 0.75),
+        arrowprops=dict(arrowstyle="->", color="red", lw=1.2),
+        fontsize=10, color="red"
+    )
+
+    ax2.set_xlabel("τ (безразмерное время, 1 = 1 период)")
+    ax2.set_ylabel("|Δr|, км")
+    ax2.set_title("Отклонение возмущённой траектории от невозмущённой")
+    ax2.set_xlim(0, 1)
+    ax2.set_ylim(bottom=0)
+    ax2.grid(True)
+
+    plt.suptitle(f"Сравнение траекторий: {params.name}", fontsize=13)
+    plt.tight_layout()
     plt.show()
 
 def plot_results(tau_values: np.ndarray, q_values: np.ndarray, params: SystemParams):
-    """
-    Строит два графика:
-    1) в безразмерных координатах
-    2) в километрах
-    """
+
     x = q_values[:, 0]
     y = q_values[:, 1]
 
